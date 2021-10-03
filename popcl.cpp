@@ -9,8 +9,12 @@
 
 #include <iostream>
 #include <stdlib.h>
+#include <stdbool.h>
+#include <string>
 #include <getopt.h>
+#include <unistd.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
 #include "popHeader.h"
 
 using namespace std;
@@ -19,19 +23,91 @@ using namespace pop3cl;
 int main(int argc, char* argv[]) {
 
     if(argc == 1){
-        fprintf(stderr,"No arguments, type 'popcl --help' for manual");
+        cerr << "No arguments, type 'popcl -h' for manual" << endl;
         exit(-1);
     }
-    string serverAddr = argv[1]; 
-    
-    while(int opt = getopt(argc, argv, "p:TSc:C:dna:o:") != -1) {
+
+
+    string addres(argv[1]);
+    pop3cl::Pop3Client client(addres);
+
+    /**
+     *  Mandatory parameters:  <server>, -a <auth_file>, -o <out_dir> 
+     */
+    int opt;
+    while((opt = getopt(argc, argv, "hp:TSc:C:dna:o:")) != -1) {
         switch(opt) {
-            
 
+            case 'h':
+                cout << "Usage: popcl <server> [-p <port>] [-T|-S [-c <certfile>] [-C <certaddr>]] [-d] [-n] -a <auth_file> -o <out_dir>" << endl;
+                exit(0);
+                break;
+
+            case 'p':
+                client.serverPort = stoi(optarg);
+                continue;
+
+            case 'T':
+                client.encryptedComm = true;
+                continue;
+
+            case 'S':
+                client.encryptedSTLS = true;    
+                continue;
+
+            case 'c': 
+            case 'C':
+                client.certificate.certificateGiven = true;
+                client.certificate.certificateFile = fopen(optarg,"r");
+                if (client.certificate.certificateFile == NULL) {
+                    cerr << "error: cannot open certificate file" << endl;
+                    exit(1);    
+                }
+                continue;
+
+            case 'd':
+                client.deleteMessage = true;
+                continue;
+
+            case 'n':
+                client.newMsgMode = true;        
+                continue;
+
+            case 'a':
+                client.authentisation.authGiven = true;
+                client.authentisation.authFile = fopen(optarg,"r");
+                if (client.authentisation.authFile == NULL) {
+                    cerr << "error: cannot open authentisation file" << endl;
+                    exit(1);
+                } 
+                continue;
+
+            case 'o':
+                client.output.outGiven = true;
+                client.output.outFile = fopen(optarg,"r");       
+                if (client.output.outFile == NULL) {
+                    cerr << "error: cannot open output file" << endl;
+                } 
+                continue;
+
+            case '?': continue;
             default: break;
-        }
-
+        }// ERROR: UKONCI SA PO SWITCHI 
 
     }
+    /**
+     * Mandatory parameters check 
+    */
+    if (!client.authentisation.authGiven) {
+        cerr << "error: authentisation file not given" << endl;
+        exit(1);
+    }
+    if (!client.output.outGiven) {
+        cerr << "error: output file not given" << endl;
+        exit(1);
+    }
+
+
+    
     return 0;
 }
