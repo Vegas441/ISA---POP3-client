@@ -28,10 +28,11 @@ int main(int argc, char* argv[]) {
     }
 
 
-    string addres(argv[1]);
+    const char *addres(argv[1]);
     pop3cl::Pop3Client client(addres);
 
     /**
+     *  Parameter switch 
      *  Mandatory parameters:  <server>, -a <auth_file>, -o <out_dir> 
      */
     int opt;
@@ -58,7 +59,7 @@ int main(int argc, char* argv[]) {
             case 'c': 
             case 'C':
                 client.certificate.certificateGiven = true;
-                client.certificate.certificateFile = fopen(optarg,"r");
+                client.certificate.certificateFile = optarg;
                 if (client.certificate.certificateFile == NULL) {
                     cerr << "error: cannot open certificate file" << endl;
                     exit(1);    
@@ -75,24 +76,18 @@ int main(int argc, char* argv[]) {
 
             case 'a':
                 client.authentisation.authGiven = true;
-                client.authentisation.authFile = fopen(optarg,"r");
-                if (client.authentisation.authFile == NULL) {
-                    cerr << "error: cannot open authentisation file" << endl;
-                    exit(1);
-                } 
+                client.authentisation.authFileName = optarg;
+                client.setUser();
                 continue;
 
             case 'o':
                 client.output.outGiven = true;
-                client.output.outFile = fopen(optarg,"r");       
-                if (client.output.outFile == NULL) {
-                    cerr << "error: cannot open output file" << endl;
-                } 
+                client.output.outDir = optarg;
                 continue;
 
             case '?': continue;
             default: break;
-        }// ERROR: UKONCI SA PO SWITCHI 
+        }
 
     }
     /**
@@ -107,6 +102,8 @@ int main(int argc, char* argv[]) {
         exit(1);
     }
 
+    client.pop3connect();
+    client.pop3authenticate();
 
     
     return 0;
