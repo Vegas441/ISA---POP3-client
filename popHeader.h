@@ -28,6 +28,7 @@ namespace pop3cl
             //--------------//
 
             //--- Parameters ---//
+            std::string command;
             const char *serverAddr;
             int serverPort;
 
@@ -65,6 +66,12 @@ namespace pop3cl
             Pop3Client(const char *addr);
 
             /**
+             * Destructor
+             * 
+             */
+            ~Pop3Client();
+
+            /**
              * SSL library initializator 
              */
             void SSLinit();
@@ -96,6 +103,17 @@ namespace pop3cl
              * 
              */
             void pop3authenticate();
+
+            /**
+             * Sends stat parameter
+             *  
+             */
+            void pop3stat();
+
+            /**
+             * 
+             */
+            void pop3download(int messageIndex);
 
 
         private:

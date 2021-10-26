@@ -104,7 +104,6 @@ int main(int argc, char* argv[]) {
 
     client.pop3connect();
     client.pop3authenticate();
-
-    
+    client.pop3stat();
     return 0;
 }

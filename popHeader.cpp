@@ -13,7 +13,8 @@
 #include <openssl/err.h>
 #include "popHeader.h"
 
-#define BUFFSIZE 1024
+#define BUFFSIZE 512
+#define ENDLINE "\r\n\0"
 
 using namespace pop3cl;
 using namespace std;
@@ -21,6 +22,7 @@ using namespace std;
 Pop3Client::Pop3Client(const char *addr){
 
         buffer = (char*)malloc(BUFFSIZE);
+        
         serverAddr = addr;
         serverPort = 110;
         encryptedComm = false;
@@ -38,6 +40,7 @@ Pop3Client::Pop3Client(const char *addr){
         char *port = (char*)malloc(5*sizeof(char));
         sprintf(port,"%d",serverPort);
         strcat(hostname,port);
+        free(port);
 }
 
 void Pop3Client::SSLinit(){
@@ -45,6 +48,13 @@ void Pop3Client::SSLinit(){
         ERR_load_BIO_strings();
         SSL_library_init();
         OpenSSL_add_all_algorithms();
+}
+
+Pop3Client::~Pop3Client(){
+        buffer = NULL;
+        free(buffer);
+
+        free(hostname);
 }
 
 void Pop3Client::setUser(){
@@ -132,21 +142,21 @@ void Pop3Client::pop3connect(){
 
         
         if(strstr(buffer,"+OK") != NULL){
-                cout << buffer << endl;
+                cout << buffer;
         }else{
                 cerr << "error: server not responding" << endl;
                 exit(1);
         }
+        return;
 }
 
 void Pop3Client::pop3authenticate(){
 
         //-- Username --//
-        strcpy(buffer,"USER ");
-        strcat(buffer,username.c_str());
+        command = "USER "; command += username; command += ENDLINE;
 
         try{
-                if(BIO_write(bio,buffer,BUFFSIZE) <= 0) throw -1;
+                if(BIO_write(bio,command.c_str(),command.length()) <= 0) throw -1;
         }
         catch(int e){
                 cerr << "error: an error ocurred while sending USER parameter" << endl;
@@ -162,7 +172,7 @@ void Pop3Client::pop3authenticate(){
         }
         
         if(strstr(buffer,"+OK") != NULL){
-                cout << buffer << endl;
+                cout << buffer;
         }else{
                 cerr << "error: an error ocurred while sending USER parameter" << endl;
                 exit(1);
@@ -170,14 +180,13 @@ void Pop3Client::pop3authenticate(){
 
 
         //-- Password --//
-        strcpy(buffer,"PASS ");
-        strcat(buffer,password.c_str());
+        command = "PASS "; command += password; command += ENDLINE; 
 
         try{
-                if(BIO_write(bio,buffer,BUFFSIZE) <= 0) throw -1;
+                if(BIO_write(bio,command.c_str(),command.length()) <= 0) throw -1;
         }
         catch(int e){
-                cerr << "error: an error ocurred while sending USER parameter" << endl;
+                cerr << "error: an error ocurred while sending PASS parameter" << endl;
                 exit(1);
         }
 
@@ -192,9 +201,49 @@ void Pop3Client::pop3authenticate(){
         if(strstr(buffer,"+OK") != NULL){
                 cout << buffer << endl;
         }else{
-                //cout << buffer << endl;
-                cerr << "error: incorrect password" << endl;
+                cerr << "error: password: " << buffer << endl;
                 exit(1);
         }        
 }
 
+void Pop3Client::pop3stat(){
+
+        command = "STAT "; command += ENDLINE;
+
+        try{
+                if(BIO_write(bio,command.c_str(),command.length()) <= 0) throw -1;
+        }
+        catch(int e){
+                cerr << "error: an error ocurred while sending STAT parameter" << endl;
+                exit(1);
+        }
+
+        try {
+                if(BIO_read(bio,buffer,BUFFSIZE) < 0) throw -1;
+        }
+        catch(int e){
+                cerr << "error: no answer recieved" << endl;
+                exit(1);
+        }
+
+        if(strstr(buffer,"+OK") != NULL){
+                if(strstr(buffer,"+OK 0 ") != NULL){
+                        cout << "Downloaded 0 new messages." << endl;
+                        exit(0);
+                }else{
+                        string messageNum(buffer,sizeof(buffer));
+                        messageNum = messageNum.substr(4,messageNum.length());
+                        messageNum = messageNum.substr(0,messageNum.find(' ')+1);
+                        int mNum = stoi(messageNum);
+                        
+                }
+
+        }else{
+                cerr << "error: STAT: " << buffer << endl;
+                exit(1);
+        }  
+}
+
+void Pop3Client::pop3download(int messageIndex){
+
+}

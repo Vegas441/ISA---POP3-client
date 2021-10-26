@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS = -std=c++17 -Wall -Wextra 
+CFLAGS = -std=c++17 -Wall -Wextra -pthread -pedantic
 LDFLAGS = -L/usr/include/openssl -L/usr/lib/ssl -L/usr/include/crypto++ 
 LDLIBS = -lssl -lcrypto 
 
