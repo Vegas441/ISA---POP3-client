@@ -1,5 +1,6 @@
 /**
  * @author David Svaty (xsvaty01)
+ * @file popcl.cpp
  * @date 
  * 
  * This is a symple POP3 client.

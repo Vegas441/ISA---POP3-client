@@ -1,3 +1,9 @@
+/**
+ * @author David Svaty (xsvaty01)
+ * @file popHeader.h
+ * @date 
+ */
+
 #ifndef POP3_H
 #define POP3_H
 #include <stdlib.h>
@@ -60,29 +66,35 @@ namespace pop3cl
 
             //--- Methods ---//
             /**
-             * Object constructor
+             * @brief Object constructor
              * @param addr server adress 
              */
             Pop3Client(const char *addr);
 
             /**
-             * Destructor
+             * @brief Class destructor
              * 
              */
             ~Pop3Client();
 
             /**
-             * SSL library initializator 
+             * @brief SSL library initializator 
              */
             void SSLinit();
 
             /**
-             * Sets certificate path 
+             * @brief Sets certificate path 
              */
             void setCertificate(SSL_CTX *ctx); 
             
             /**
-             * Sets user credentials 
+             * @brief Clears buffer
+             * 
+             */
+            void clearBuffer();
+
+            /**
+             * @brief Sets user credentials 
              * 
              * Works as a simple config file parser
              * Format:
@@ -92,20 +104,20 @@ namespace pop3cl
             void setUser();
 
             /**
-             * Connects to server
+             * @brief Connects to server
              * 
              */
             void pop3connect();
             //-----------------//
 
             /**
-             * Sets user and password parameters
+             * @brief Sets user and password parameters
              * 
              */
             void pop3authenticate();
 
             /**
-             * Sends stat parameter
+             * @brief Sends stat parameter
              *  
              */
             void pop3stat();
@@ -114,6 +126,12 @@ namespace pop3cl
              * 
              */
             void pop3download(int messageIndex);
+
+            /**
+             * @brief Sends QUIT command and disconnects form server
+             * 
+             */
+            void pop3disconnect();
 
 
         private:

@@ -1,3 +1,9 @@
+/**
+ * @author David Svaty (xsvaty01)
+ * @file popHeader.cpp
+ * @date 
+ */
+
 #include <iostream>
 #include <stdlib.h>
 #include <string>
@@ -13,7 +19,7 @@
 #include <openssl/err.h>
 #include "popHeader.h"
 
-#define BUFFSIZE 512
+#define BUFFSIZE 1024
 #define ENDLINE "\r\n\0"
 
 using namespace pop3cl;
@@ -43,6 +49,13 @@ Pop3Client::Pop3Client(const char *addr){
         free(port);
 }
 
+Pop3Client::~Pop3Client(){
+        buffer = NULL;
+        free(buffer);
+
+        free(hostname);
+}
+
 void Pop3Client::SSLinit(){
         SSL_load_error_strings();
         ERR_load_BIO_strings();
@@ -50,11 +63,8 @@ void Pop3Client::SSLinit(){
         OpenSSL_add_all_algorithms();
 }
 
-Pop3Client::~Pop3Client(){
-        buffer = NULL;
-        free(buffer);
-
-        free(hostname);
+void Pop3Client::clearBuffer(){
+        memset(buffer,0,1024);
 }
 
 void Pop3Client::setUser(){
@@ -139,7 +149,7 @@ void Pop3Client::pop3connect(){
                 cerr << "error: no answer recieved" << endl;
                 exit(1);
         }
-
+        
         
         if(strstr(buffer,"+OK") != NULL){
                 cout << buffer;
@@ -147,6 +157,8 @@ void Pop3Client::pop3connect(){
                 cerr << "error: server not responding" << endl;
                 exit(1);
         }
+
+        clearBuffer();
         return;
 }
 
@@ -177,7 +189,7 @@ void Pop3Client::pop3authenticate(){
                 cerr << "error: an error ocurred while sending USER parameter" << endl;
                 exit(1);
         }        
-
+        clearBuffer();
 
         //-- Password --//
         command = "PASS "; command += password; command += ENDLINE; 
@@ -204,6 +216,7 @@ void Pop3Client::pop3authenticate(){
                 cerr << "error: password: " << buffer << endl;
                 exit(1);
         }        
+        clearBuffer();
 }
 
 void Pop3Client::pop3stat(){
@@ -235,7 +248,9 @@ void Pop3Client::pop3stat(){
                         messageNum = messageNum.substr(4,messageNum.length());
                         messageNum = messageNum.substr(0,messageNum.find(' ')+1);
                         int mNum = stoi(messageNum);
-                        
+                        for (int i=1; i <= mNum; i++){
+                                pop3download(i);
+                        }
                 }
 
         }else{
@@ -245,5 +260,66 @@ void Pop3Client::pop3stat(){
 }
 
 void Pop3Client::pop3download(int messageIndex){
+        command = "RETR ";
+        command += to_string(messageIndex); 
+        command += ENDLINE;
 
+        try{
+                if(BIO_write(bio,command.c_str(),command.length()) <= 0) throw -1;
+        }
+        catch(int e){
+                cerr << "error: an error ocurred while sending RETR parameter" << endl;
+                exit(1);
+        }
+
+        try {
+                if(BIO_read(bio,buffer,BUFFSIZE) < 0) throw -1;
+        }
+        catch(int e){
+                cerr << "error: no answer recieved" << endl;
+                exit(1);
+        }
+        
+        //cout << buffer << endl;
+        clearBuffer();
+
+        //message deleting 
+        if(deleteMessage){
+                command = "DELE ";
+                command += to_string(messageIndex); 
+                command += ENDLINE;
+
+                try{
+                        if(BIO_write(bio,command.c_str(),command.length()) <= 0) throw -1;
+                }
+                catch(int e){
+                        cerr << "error: an error ocurred while sending DELE parameter" << endl;
+                        exit(1);
+                }
+
+                try {
+                        if(BIO_read(bio,buffer,BUFFSIZE) < 0) throw -1;
+                }
+                catch(int e){
+                        cerr << "error: no answer recieved" << endl;
+                        exit(1);
+                }
+                clearBuffer();
+                //cerr << "error: DELE " << to_string(messageIndex) << ": " << buffer << endl;
+
+        }
 }
+
+void Pop3Client::pop3disconnect() {
+        command = "QUIT"; command += ENDLINE;
+
+        try{
+                if(BIO_write(bio,command.c_str(),command.length()) <= 0) throw -1;
+        }
+        catch(int e){
+                cerr << "error: an error ocurred while sending QUIT parameter" << endl;
+                exit(1);
+        }
+}
+
+// ./popcl 172.26.144.1 -p 110 -a auth_file o -output_dir
