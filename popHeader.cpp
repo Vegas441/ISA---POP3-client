@@ -25,35 +25,26 @@
 using namespace pop3cl;
 using namespace std;
 
-Pop3Client::Pop3Client(const char *addr){
+Pop3Client::Pop3Client(const char* addr){
 
         buffer = (char*)malloc(BUFFSIZE);
         
-        serverAddr = addr;
+        serverAddr = string(addr);
         serverPort = 110;
         encryptedComm = false;
         encryptedSTLS = false;
         certificate.certificateGiven = false;
+        certificate.certificatePathGiven = false;
         deleteMessage = false;
         newMsgMode = false;
         authentisation.authGiven = false;
         output.outGiven = false;        
 
-        hostname = (char *)malloc((strlen(serverAddr)+6*(sizeof(char)))*sizeof(char));
-        strcpy(hostname,serverAddr);
-        strcat(hostname,":");
-
-        char *port = (char*)malloc(5*sizeof(char));
-        sprintf(port,"%d",serverPort);
-        strcat(hostname,port);
-        free(port);
 }
 
 Pop3Client::~Pop3Client(){
         buffer = NULL;
         free(buffer);
-
-        free(hostname);
 }
 
 void Pop3Client::SSLinit(){
@@ -61,6 +52,36 @@ void Pop3Client::SSLinit(){
         ERR_load_BIO_strings();
         SSL_library_init();
         OpenSSL_add_all_algorithms();
+        ctx = SSL_CTX_new(SSLv23_client_method());
+}
+
+void Pop3Client::setCertificate(SSL_CTX *ctx){
+        if(certificate.certificateGiven) {
+                try {   
+                        if(!SSL_CTX_load_verify_locations(ctx,certificate.certificateFile,NULL)) throw -1;
+                }
+                catch(int e){
+                        cerr << "error: invalid certificate" << endl;
+                        exit(1);
+                }
+        }
+        else if(certificate.certificatePathGiven){
+                try {   
+                        if(!SSL_CTX_load_verify_locations(ctx,NULL,certificate.certificatePath)) throw -1;
+                }
+                catch(int e){
+                        cerr << "error: invalid certificate" << endl;
+                        exit(1);
+                }
+        }
+        else {
+                SSL_CTX_set_default_verify_paths(ctx);
+        }
+
+        if(SSL_get_verify_result(ssl) != X509_V_OK) {
+                cerr << "error: failed to verify certificates" << endl;
+                exit(1);
+        }
 }
 
 void Pop3Client::clearBuffer(){
@@ -93,46 +114,41 @@ void Pop3Client::setUser(){
         password = pwd.substr(pwd.find('=')+2,uname.length());
 }
 
-void Pop3Client::setCertificate(SSL_CTX *ctx){
-        if(certificate.certificateGiven) {
-                try {   
-                        if(!SSL_CTX_load_verify_locations(ctx,certificate.certificateFile,NULL)) throw -1;
-                }
-                catch(int e){
-                        cerr << "error: invalid certificate" << endl;
-                        exit(1);
-                }
-        }
-        else {
-                SSL_CTX_set_default_verify_paths(ctx);
-        }
+void Pop3Client::saveMessage() {
+        cout << "saving message" << endl;
+        string msg(buffer);
 }
 
 void Pop3Client::pop3connect(){
 
+        //Sets hostname
+        hostname = serverAddr + ":" + to_string(serverPort);
         //SSL initialization
         SSLinit();
 
-        //toto presunut ako parameter classy
-        SSL_CTX *ctx = SSL_CTX_new(SSLv23_client_method());
-        SSL *ssl;
+        if(encryptedComm || encryptedSTLS){
+                bio = BIO_new_ssl_connect(ctx);
+                //upgrades the socket 
+                BIO* Cssl = BIO_new_ssl(ctx,1);
+                BIO_push(Cssl, bio);
+                //---------
+                BIO_get_ssl(bio, & ssl);
+                SSL_set_mode(ssl,SSL_MODE_AUTO_RETRY);
+                BIO_set_conn_hostname(bio,hostname.c_str());    //segfault bez encrypted komunikacie 
+        }
+        //cout << hostname << endl;
 
-        bio = BIO_new_ssl_connect(ctx);
-        BIO_get_ssl(bio, & ssl);
-        SSL_set_mode(ssl,SSL_MODE_AUTO_RETRY);
-        BIO_set_conn_hostname(bio,hostname);
-        //SSL_CTX_set_timeout(ctx,5);
-
-
+        
         try {
-                if((bio = BIO_new_connect(hostname)) == NULL) throw -1;
+                if((bio = BIO_new_connect(hostname.c_str())) == NULL) throw -1;
         }
         catch(int e){
                 cerr << "error: connection failed" << endl;
                 exit(1);
         }
 
-        setCertificate(ctx);
+        if(encryptedComm || encryptedSTLS)
+                setCertificate(ctx);
 
         try {
                 if(BIO_do_connect(bio) <= 0) throw -1;
@@ -156,6 +172,19 @@ void Pop3Client::pop3connect(){
         }else{
                 cerr << "error: server not responding" << endl;
                 exit(1);
+        }
+
+        if(encryptedSTLS){
+
+                command = "STLS"; command += ENDLINE;
+                if(BIO_write(bio,command.c_str(),command.length()) <= 0){
+                        cerr << "error: error ocurred while sending STLS paramete" << endl;
+                        exit(1);
+                }
+                if(BIO_read(bio,buffer,BUFFSIZE) < 0){
+                        cerr << "error: no response" << endl;
+                        exit(1);
+                }else cout << buffer << endl;
         }
 
         clearBuffer();
@@ -279,7 +308,8 @@ void Pop3Client::pop3download(int messageIndex){
                 cerr << "error: no answer recieved" << endl;
                 exit(1);
         }
-        
+        saveMessage();
+
         //cout << buffer << endl;
         clearBuffer();
 
@@ -319,6 +349,11 @@ void Pop3Client::pop3disconnect() {
         catch(int e){
                 cerr << "error: an error ocurred while sending QUIT parameter" << endl;
                 exit(1);
+        }
+        BIO_free_all(bio);
+
+        if(encryptedComm){
+                SSL_CTX_free(ctx);
         }
 }
 

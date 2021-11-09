@@ -1,0 +1,18 @@
+# Simple POP3 client with STLS support 
+Author: David Svaty
+Login: xsvaty01
+Deadline: 15.11.2021
+
+## Usage
+popcl <server> [-p <port>] [-T|-S [-c <certfile>] [-C <certaddr>]] [-d] [-n] -a <auth_file> -o <out_dir>
+
+### Parameters
+-p <port> ->        Specifies a port number  
+-T ->               Encrypts entire communication 
+-S ->               Encrypts communication with STLS 
+-c <certfile> ->    Defines certificate file
+-C <certaddr> ->    Defines certificate path 
+-d -> 
+-n -> 
+-a <auth_file> -> 
+-o <output_dir -> 

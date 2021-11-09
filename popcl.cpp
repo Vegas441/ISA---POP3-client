@@ -29,8 +29,7 @@ int main(int argc, char* argv[]) {
     }
 
 
-    const char *addres(argv[1]);
-    pop3cl::Pop3Client client(addres);
+    pop3cl::Pop3Client client(argv[1]);
 
     /**
      *  Parameter switch 
@@ -57,8 +56,16 @@ int main(int argc, char* argv[]) {
                 client.encryptedSTLS = true;    
                 continue;
 
-            case 'c': 
             case 'C':
+                client.certificate.certificatePathGiven = true;
+                client.certificate.certificatePath = optarg;
+                if (client.certificate.certificatePath == NULL) {
+                    cerr << "error: cannot open certificate file" << endl;
+                    exit(1);    
+                }
+                continue;
+
+            case 'c':
                 client.certificate.certificateGiven = true;
                 client.certificate.certificateFile = optarg;
                 if (client.certificate.certificateFile == NULL) {
@@ -106,5 +113,6 @@ int main(int argc, char* argv[]) {
     client.pop3connect();
     client.pop3authenticate();
     client.pop3stat();
+    client.pop3disconnect();
     return 0;
 }

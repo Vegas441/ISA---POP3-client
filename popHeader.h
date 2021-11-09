@@ -35,17 +35,19 @@ namespace pop3cl
 
             //--- Parameters ---//
             std::string command;
-            const char *serverAddr;
+            std::string serverAddr;
             int serverPort;
 
-            char *hostname;
+            std::string hostname;
 
             bool encryptedComm;
             bool encryptedSTLS;
 
             struct certificateStruct {
                 bool certificateGiven;
+                bool certificatePathGiven;
                 char *certificateFile;
+                char* certificatePath;
             }certificate;
 
             bool deleteMessage = false;
@@ -60,6 +62,9 @@ namespace pop3cl
                 bool outGiven = false;
                 std::string outDir;
             }output;
+
+            SSL_CTX *ctx;
+            SSL *ssl;
             //-------------------//
 
             //int sock;
@@ -102,6 +107,12 @@ namespace pop3cl
              * password = *password*
              */
             void setUser();
+
+            /**
+             * @brief Saves message
+             * 
+             */
+            void saveMessage();
 
             /**
              * @brief Connects to server
