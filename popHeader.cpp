@@ -119,6 +119,39 @@ void Pop3Client::saveMessage() {
         string msg(buffer);
 }
 
+void Pop3Client::pop3send(string cmd){
+        try{
+                if(BIO_write(bio,cmd.c_str(),cmd.length()) <= 0) throw -1;
+        }
+        catch(int e){
+                string param = cmd.substr(0,4);
+                cerr << "error: an error ocurred while sending" << param << "parameter" << endl;
+                exit(1);
+        }
+}
+
+void Pop3Client::pop3read(){
+        try {
+                if(BIO_read(bio,buffer,BUFFSIZE) < 0) throw -1;
+        }
+        catch(int e){
+                string param = command.substr(0,4);
+                cerr << "error: " << param << ": no answer recieved" << endl;
+                exit(1);
+        }
+}
+
+void Pop3Client::pop3isOk(){
+        if(strstr(buffer,"+OK") != NULL){
+                cout << buffer; // potom upravit
+        }else{
+                //tuto sa treba pozret pri DELE 
+                string param = command.substr(0,4);
+                cerr << "error: " << param << ": "<< buffer << endl;
+                exit(1);
+        }
+}
+
 void Pop3Client::pop3connect(){
 
         //Sets hostname
@@ -158,33 +191,14 @@ void Pop3Client::pop3connect(){
                 exit(1);
         }
 
-        try {
-                if(BIO_read(bio,buffer,BUFFSIZE) < 0) throw -1;
-        }
-        catch(int e){
-                cerr << "error: no answer recieved" << endl;
-                exit(1);
-        }
-        
-        
-        if(strstr(buffer,"+OK") != NULL){
-                cout << buffer;
-        }else{
-                cerr << "error: server not responding" << endl;
-                exit(1);
-        }
+        pop3read();
+        pop3isOk();
 
         if(encryptedSTLS){
 
                 command = "STLS"; command += ENDLINE;
-                if(BIO_write(bio,command.c_str(),command.length()) <= 0){
-                        cerr << "error: error ocurred while sending STLS paramete" << endl;
-                        exit(1);
-                }
-                if(BIO_read(bio,buffer,BUFFSIZE) < 0){
-                        cerr << "error: no response" << endl;
-                        exit(1);
-                }else cout << buffer << endl;
+                pop3send(command);
+                pop3read();
         }
 
         clearBuffer();
@@ -195,97 +209,40 @@ void Pop3Client::pop3authenticate(){
 
         //-- Username --//
         command = "USER "; command += username; command += ENDLINE;
+        pop3send(command);
 
-        try{
-                if(BIO_write(bio,command.c_str(),command.length()) <= 0) throw -1;
-        }
-        catch(int e){
-                cerr << "error: an error ocurred while sending USER parameter" << endl;
-                exit(1);
-        }
-
-        try {
-                if(BIO_read(bio,buffer,BUFFSIZE) < 0) throw -1;
-        }
-        catch(int e){
-                cerr << "error: no answer recieved" << endl;
-                exit(1);
-        }
-        
-        if(strstr(buffer,"+OK") != NULL){
-                cout << buffer;
-        }else{
-                cerr << "error: an error ocurred while sending USER parameter" << endl;
-                exit(1);
-        }        
+        pop3read();
+        pop3isOk();        
         clearBuffer();
 
         //-- Password --//
         command = "PASS "; command += password; command += ENDLINE; 
+        pop3send(command);
+        pop3read();
 
-        try{
-                if(BIO_write(bio,command.c_str(),command.length()) <= 0) throw -1;
-        }
-        catch(int e){
-                cerr << "error: an error ocurred while sending PASS parameter" << endl;
-                exit(1);
-        }
-
-        try {
-                if(BIO_read(bio,buffer,BUFFSIZE) < 0) throw -1;
-        }
-        catch(int e){
-                cerr << "error: no answer recieved" << endl;
-                exit(1);
-        }
-
-        if(strstr(buffer,"+OK") != NULL){
-                cout << buffer << endl;
-        }else{
-                cerr << "error: password: " << buffer << endl;
-                exit(1);
-        }        
+        pop3isOk();        
         clearBuffer();
 }
 
 void Pop3Client::pop3stat(){
 
         command = "STAT "; command += ENDLINE;
+        pop3send(command);
+        pop3read();
+        pop3isOk();
 
-        try{
-                if(BIO_write(bio,command.c_str(),command.length()) <= 0) throw -1;
-        }
-        catch(int e){
-                cerr << "error: an error ocurred while sending STAT parameter" << endl;
-                exit(1);
-        }
-
-        try {
-                if(BIO_read(bio,buffer,BUFFSIZE) < 0) throw -1;
-        }
-        catch(int e){
-                cerr << "error: no answer recieved" << endl;
-                exit(1);
-        }
-
-        if(strstr(buffer,"+OK") != NULL){
-                if(strstr(buffer,"+OK 0 ") != NULL){
-                        cout << "Downloaded 0 new messages." << endl;
-                        exit(0);
-                }else{
-                        string messageNum(buffer,sizeof(buffer));
-                        messageNum = messageNum.substr(4,messageNum.length());
-                        messageNum = messageNum.substr(0,messageNum.find(' ')+1);
-                        int mNum = stoi(messageNum);
-                        for (int i=1; i <= mNum; i++){
-                                pop3download(i);
-                        }
-                }
-
+        if(strstr(buffer,"+OK 0 ") != NULL){
+                cout << "Downloaded 0 new messages." << endl;
+                exit(0);
         }else{
-                cerr << "error: STAT: " << buffer << endl;
-                exit(1);
-        }  
+                string messageNum(buffer,sizeof(buffer));
+                messageNum = messageNum.substr(4,messageNum.length());
+                messageNum = messageNum.substr(0,messageNum.find(' ')+1);
+                int mNum = stoi(messageNum);
+                for (int i=1; i <= mNum; i++){
+                        pop3download(i);
+                }
+        } 
 }
 
 void Pop3Client::pop3download(int messageIndex){
@@ -293,21 +250,8 @@ void Pop3Client::pop3download(int messageIndex){
         command += to_string(messageIndex); 
         command += ENDLINE;
 
-        try{
-                if(BIO_write(bio,command.c_str(),command.length()) <= 0) throw -1;
-        }
-        catch(int e){
-                cerr << "error: an error ocurred while sending RETR parameter" << endl;
-                exit(1);
-        }
-
-        try {
-                if(BIO_read(bio,buffer,BUFFSIZE) < 0) throw -1;
-        }
-        catch(int e){
-                cerr << "error: no answer recieved" << endl;
-                exit(1);
-        }
+        pop3send(command);
+        pop3read();
         saveMessage();
 
         //cout << buffer << endl;
@@ -319,21 +263,10 @@ void Pop3Client::pop3download(int messageIndex){
                 command += to_string(messageIndex); 
                 command += ENDLINE;
 
-                try{
-                        if(BIO_write(bio,command.c_str(),command.length()) <= 0) throw -1;
-                }
-                catch(int e){
-                        cerr << "error: an error ocurred while sending DELE parameter" << endl;
-                        exit(1);
-                }
+                pop3send(command);
+                pop3read();
+                pop3isOk();
 
-                try {
-                        if(BIO_read(bio,buffer,BUFFSIZE) < 0) throw -1;
-                }
-                catch(int e){
-                        cerr << "error: no answer recieved" << endl;
-                        exit(1);
-                }
                 clearBuffer();
                 //cerr << "error: DELE " << to_string(messageIndex) << ": " << buffer << endl;
 
@@ -341,15 +274,10 @@ void Pop3Client::pop3download(int messageIndex){
 }
 
 void Pop3Client::pop3disconnect() {
-        command = "QUIT"; command += ENDLINE;
 
-        try{
-                if(BIO_write(bio,command.c_str(),command.length()) <= 0) throw -1;
-        }
-        catch(int e){
-                cerr << "error: an error ocurred while sending QUIT parameter" << endl;
-                exit(1);
-        }
+        command = "QUIT"; command += ENDLINE;
+        pop3send(command);
+
         BIO_free_all(bio);
 
         if(encryptedComm){

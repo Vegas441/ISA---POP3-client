@@ -122,6 +122,25 @@ namespace pop3cl
             //-----------------//
 
             /**
+             * @brief Sends message to server
+             * 
+             * @param cmd 
+             */
+            void pop3send(std::string cmd);
+
+            /**
+             * @brief Reads message from server and saves it to buffer
+             * 
+             */
+            void pop3read();
+
+            /**
+             * @brief Checks whether server response is "+OK"
+             * 
+             */
+            void pop3isOk();
+
+            /**
              * @brief Sets user and password parameters
              * 
              */
