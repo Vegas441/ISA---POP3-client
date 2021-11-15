@@ -1,15 +1,12 @@
 /**
  * @author David Svaty (xsvaty01)
  * @file popHeader.h
- * @date 
+ * @date 15.11.2021
  */
 
 #ifndef POP3_H
 #define POP3_H
 #include <stdlib.h>
-#include <string>
-#include <fstream>
-#include <arpa/inet.h>
 #include <openssl/ssl.h>
 #include <openssl/tls1.h>
 #include <openssl/bio.h>
@@ -50,7 +47,7 @@ namespace pop3cl
                 char* certificatePath;
             }certificate;
 
-            bool deleteMessage = false;
+            bool delMsgMode = false;
             bool newMsgMode = false;
 
             struct authentisationStruct {
@@ -65,6 +62,8 @@ namespace pop3cl
 
             SSL_CTX *ctx;
             SSL *ssl;
+
+            int messagesDownloaded;
             //-------------------//
 
             //int sock;
@@ -77,18 +76,14 @@ namespace pop3cl
             Pop3Client(const char *addr);
 
             /**
-             * @brief Class destructor
-             * 
-             */
-            ~Pop3Client();
-
-            /**
              * @brief SSL library initializator 
+             * Some functions in this method are taken from https://developer.ibm.com/tutorials/l-openssl/
              */
             void SSLinit();
 
             /**
              * @brief Sets certificate path 
+             * @param ctx 
              */
             void setCertificate(SSL_CTX *ctx); 
             
@@ -109,14 +104,43 @@ namespace pop3cl
             void setUser();
 
             /**
-             * @brief Saves message
+             * @brief Returns true if message is less than one day old 
              * 
              */
-            void saveMessage();
+            bool messageIsNew(std::string msg);
+
+            /**
+             * @brief Indicates the ending of a message
+             * 
+             * @param msg Message to be checked  
+             */
+            bool messageIsEnd(std::string msg);
+
+            /**
+             * @brief UNUSED FUNCTION 
+             * 
+             * @param msg message to be formatted
+             * @return std::string Returns formatted message  
+             */
+            std::string formatMessage(std::string msg); 
+
+            /**
+             * @brief Saves message
+             * 
+             * @param msg Message to be saved 
+             */
+            void saveMessage(std::string msg);
+
+            /**
+             * @brief Deletes message
+             * 
+             * @param messageIndex Index of message to be deleted
+             */
+            void deleteMessage(int messageIndex);
 
             /**
              * @brief Connects to server
-             * 
+             * Some functions in this method taken from https://developer.ibm.com/tutorials/l-openssl/
              */
             void pop3connect();
             //-----------------//
@@ -124,7 +148,7 @@ namespace pop3cl
             /**
              * @brief Sends message to server
              * 
-             * @param cmd 
+             * @param cmd Command for the server 
              */
             void pop3send(std::string cmd);
 
@@ -153,13 +177,12 @@ namespace pop3cl
             void pop3stat();
 
             /**
-             * 
+             * @brief Loops through messages and calls saveMessage function 
              */
             void pop3download(int messageIndex);
 
             /**
              * @brief Sends QUIT command and disconnects form server
-             * 
              */
             void pop3disconnect();
 
